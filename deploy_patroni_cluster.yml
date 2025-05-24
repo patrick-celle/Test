@@ -1,0 +1,30 @@
+---
+- name: Apply common configuration to all nodes
+  hosts: all
+  become: yes
+  roles:
+    - role: common
+
+- name: Deploy Distributed Consensus Store (DCS - etcd)
+  hosts: dcs_nodes
+  become: yes
+  roles:
+    - role: dcs
+  # Add serial: 1 if etcd nodes need to be set up sequentially for clustering
+
+- name: Deploy PostgreSQL instances
+  hosts: postgresql_nodes
+  become: yes
+  roles:
+    - role: postgresql
+  # Consider serial: 1 if there are dependencies or if initdb is manual
+
+- name: Deploy Patroni to manage PostgreSQL cluster
+  hosts: postgresql_nodes
+  become: yes
+  roles:
+    - role: patroni
+  # Patroni nodes should ideally be started one by one or with careful coordination
+  # to allow the first node to bootstrap. Patroni handles this, but serial execution
+  # of the playbook for this part can sometimes be safer for initial setup.
+  # serial: 1

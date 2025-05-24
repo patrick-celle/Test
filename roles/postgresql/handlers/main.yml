@@ -1,0 +1,17 @@
+---
+# handlers file for postgresql
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Restart postgresql
+  service:
+    name: "postgresql@{{ pg_version }}-main" # Debian service name convention
+    state: restarted
+  listen: "Restart postgresql" # Explicit listen for clarity
+
+- name: Reload postgresql
+  service:
+    name: "postgresql@{{ pg_version }}-main"
+    state: reloaded
+  listen: "Reload postgresql" # Explicit listen

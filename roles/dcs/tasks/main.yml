@@ -1,0 +1,75 @@
+---
+# tasks file for dcs role (etcd)
+
+- name: Install etcd
+  apt:
+    name: etcd-server # Using etcd-server for Debian, was etcd on some older systems
+    state: present
+    update_cache: yes
+  register: etcd_install_result
+
+- name: Debug etcd installation
+  debug:
+    var: etcd_install_result
+
+- name: Define etcd name for this node
+  set_fact:
+    etcd_name: "{{ ansible_hostname }}" # Or use inventory_hostname if preferred
+
+- name: Build etcd initial cluster string
+  set_fact:
+    etcd_initial_cluster: >-
+      {% set nodes = [] %}
+      {% for host in groups['dcs_nodes'] %}
+      {% set _ = nodes.append(hostvars[host]['inventory_hostname'] ~ '=' ~ hostvars[host]['etcd_listen_peer_urls_scheme'] ~ '://' ~ hostvars[host]['ansible_host'] ~ ':2380') %}
+      {% endfor %}
+      {{ nodes | join(',') }}
+  run_once: true # Build this only once
+
+- name: Create etcd configuration directory
+  file:
+    path: /etc/etcd
+    state: directory
+    owner: etcd
+    group: etcd
+    mode: '0700'
+
+# Note: etcd configuration can be tricky and has changed across versions.
+# This is a basic example for etcd.service.d drop-in.
+# For production, refer to official etcd documentation for your specific version.
+
+- name: Create systemd drop-in directory for etcd
+  file:
+    path: /etc/systemd/system/etcd-server.service.d # Path for etcd-server package
+    state: directory
+    mode: '0755'
+
+- name: Configure etcd via systemd drop-in
+  template:
+    src: etcd_config.conf.j2 # We will create this template next
+    dest: /etc/systemd/system/etcd-server.service.d/10-patroni.conf
+  notify: Restart etcd
+
+- name: Ensure etcd service is started and enabled
+  service:
+    name: etcd-server # Service name for etcd-server package
+    state: started
+    enabled: yes
+    daemon_reload: yes # If template changes, systemd needs reload
+
+# Firewall tasks (using ufw as an example)
+- name: Allow etcd client port (2379)
+  ufw:
+    rule: allow
+    port: '2379'
+    proto: tcp
+    comment: etcd client requests
+
+- name: Allow etcd peer port (2380)
+  ufw:
+    rule: allow
+    port: '2380'
+    proto: tcp
+    comment: etcd peer communication
+
+# Handlers for etcd will be in roles/dcs/handlers/main.yml

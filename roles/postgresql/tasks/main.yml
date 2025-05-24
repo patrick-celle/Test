@@ -1,0 +1,64 @@
+---
+# tasks file for postgresql role
+
+- name: Ensure dependencies for adding PostgreSQL repo are installed
+  apt:
+    name:
+      - curl
+      - gpg # Changed from gnupg for simplicity, apt should resolve it
+    state: present
+
+- name: Add PostgreSQL APT GPG key
+  shell: "curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-archive-keyring.gpg"
+  args:
+    creates: /usr/share/keyrings/postgresql-archive-keyring.gpg
+
+- name: Add PostgreSQL APT repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main {{ pg_version }}"
+    state: present
+    filename: pgdg
+  notify: Update apt cache
+
+- name: Install PostgreSQL server and client packages
+  apt:
+    name:
+      - postgresql-{{ pg_version }}
+      - postgresql-client-{{ pg_version }}
+      # Potentially postgresql-contrib-{{ pg_version }} if needed
+    state: present
+    update_cache: yes # Run update_cache due to new repo, or rely on handler
+
+- name: Ensure PostgreSQL data directory exists (though initdb handled by Patroni usually)
+  file:
+    path: "{{ pg_data_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: '0700'
+
+# Patroni will typically initialize the database (initdb).
+# If not using Patroni for initdb, you would have tasks here to initialize the cluster.
+# For now, we assume Patroni handles it.
+
+- name: Configure postgresql.conf for listening and replication
+  template:
+    src: postgresql.conf.j2
+    dest: "/etc/postgresql/{{ pg_version }}/main/postgresql.conf" # Path for Debian/Ubuntu
+    owner: postgres
+    group: postgres
+    mode: '0644'
+  notify: Restart postgresql # Patroni will manage this, but good for initial setup view
+
+- name: Configure pg_hba.conf for access
+  template:
+    src: pg_hba.conf.j2
+    dest: "/etc/postgresql/{{ pg_version }}/main/pg_hba.conf" # Path for Debian/Ubuntu
+    owner: postgres
+    group: postgres
+    mode: '0640'
+  notify: Reload postgresql # Patroni will manage this
+
+# Note: Actual PostgreSQL service start/enable is usually managed by Patroni.
+# These handlers are more for if you were setting up PostgreSQL standalone.
+# Patroni will ensure PostgreSQL is in the correct state.

@@ -1,0 +1,11 @@
+[Service]
+Environment="ETCD_NAME={{ etcd_name }}"
+Environment="ETCD_DATA_DIR=/var/lib/etcd"
+Environment="ETCD_INITIAL_ADVERTISE_PEER_URLS={{ hostvars[inventory_hostname]['etcd_listen_peer_urls_scheme'] }}://{{ hostvars[inventory_hostname]['ansible_host'] }}:2380"
+Environment="ETCD_LISTEN_PEER_URLS={{ hostvars[inventory_hostname]['etcd_listen_peer_urls_scheme'] }}://0.0.0.0:2380"
+Environment="ETCD_LISTEN_CLIENT_URLS={{ hostvars[inventory_hostname]['etcd_listen_client_urls_scheme'] }}://0.0.0.0:2379"
+Environment="ETCD_ADVERTISE_CLIENT_URLS={{ hostvars[inventory_hostname]['etcd_advertise_client_urls_scheme'] }}://{{ hostvars[inventory_hostname]['ansible_host'] }}:2379"
+Environment="ETCD_INITIAL_CLUSTER_TOKEN={{ etcd_initial_cluster_token }}"
+Environment="ETCD_INITIAL_CLUSTER={{ etcd_initial_cluster }}"
+Environment="ETCD_INITIAL_CLUSTER_STATE=new"
+# Add other etcd flags as needed, e.g., for security, TLS

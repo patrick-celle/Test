@@ -1,0 +1,6 @@
+---
+# handlers file for dcs
+- name: Restart etcd
+  service:
+    name: etcd-server
+    state: restarted

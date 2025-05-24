@@ -1,0 +1,23 @@
+# Ansible managed: {{ ansible_managed }}
+[Unit]
+Description=Patroni PostgreSQL High-Availability Manager
+Documentation=https://patroni.readthedocs.io/en/latest/
+After=network.target syslog.target
+# Usually, Patroni starts PostgreSQL, so PostgreSQL service shouldn't be enabled independently.
+# If PostgreSQL service is managed by systemd and enabled, Patroni might conflict or fail.
+# Consider `Conflicts=postgresql@{{ pg_version }}-main.service` if needed.
+
+[Service]
+User=postgres
+Group=postgres
+ExecStart=/usr/local/bin/patroni /etc/patroni/patroni.yml
+# Standard paths for pip install. If installed differently, adjust ExecStart.
+# Example: if using a virtualenv: /path/to/venv/bin/patroni
+KillMode=process
+TimeoutSec=30
+Restart=on-failure # Or always
+RestartSec=5s
+# Environment="PATRONI_LOG_LEVEL=INFO" # Set log level if needed
+
+[Install]
+WantedBy=multi-user.target

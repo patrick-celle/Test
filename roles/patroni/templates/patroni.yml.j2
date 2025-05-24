@@ -1,0 +1,101 @@
+# Ansible managed: {{ ansible_managed }}
+scope: {{ patroni_scope }}
+namespace: {{ patroni_namespace | default('/service') }} # Default Patroni namespace
+name: {{ ansible_hostname }}
+
+restapi:
+  listen: {{ ansible_host }}:8008 # Listen on the main IP for API access
+  connect_address: {{ ansible_host }}:8008
+
+# DCS Configuration (etcd example)
+etcd:
+  hosts: {% for host in groups['dcs_nodes'] %}{{ hostvars[host]['ansible_host'] }}:2379{% if not loop.last %},{% endif %}{% endfor %}
+  # Optional:
+  # protocol: http
+  # ttl: 30
+  # retry_timeout: 10
+
+bootstrap:
+  dcs:
+    postgresql:
+      use_pg_rewind: true
+      parameters:
+        # These parameters are applied during initdb
+        # archive_mode: "on"
+        # archive_command: "/usr/bin/true" # Replace with actual archive command
+        max_connections: 100
+        max_wal_senders: 10
+        wal_level: replica
+        # Add other initdb parameters here
+  # Optional: Custom bootstrap script
+  # method: your_bootstrap_script
+  # command: "/path/to/your/bootstrap_script.sh"
+  initdb:
+    - encoding: UTF8
+    - locale: en_US.UTF-8 # Or your preferred locale
+    - data-checksums # Recommended
+
+postgresql:
+  listen: '{{ ansible_host }}:5432,{{ pg_replication_ip }}:5432' # Listen on main and replication IPs
+  connect_address: '{{ ansible_host }}:5432' # Primary connection address for applications
+  data_dir: {{ pg_data_dir }}
+  config_dir: /etc/postgresql/{{ pg_version }}/main # Main config dir
+  bin_dir: /usr/lib/postgresql/{{ pg_version }}/bin # Path to pg_ctl, initdb etc.
+
+  parameters:
+    # These parameters are managed by Patroni and written to postgresql.conf
+    # Patroni will overwrite these in the PG data directory's postgresql.conf
+    # or via its own included conf file.
+    wal_level: replica
+    hot_standby: "on"
+    max_connections: 100
+    max_wal_senders: 10
+    max_replication_slots: 10
+    wal_keep_segments: 64 # Or wal_keep_size for PG13+
+    # archive_mode: "on"
+    # archive_command: "..." # Define if using WAL archiving
+
+  pg_hba:
+    - host all all {{ ansible_host }}/32 scram-sha-256
+    - host all all 127.0.0.1/32 scram-sha-256
+    - host all all ::1/128 scram-sha-256
+    - host replication {{ patroni_replication_user }} all scram-sha-256 # Allow replication from any IP with correct user/pass
+    # More specific rules can be added:
+    # {% for pg_node_ip in groups['postgresql_nodes'] | map('extract', hostvars, 'ansible_host') %}
+    # - host replication {{ patroni_replication_user }} {{ pg_node_ip }}/32 scram-sha-256
+    # {% endfor %}
+    # {% for pg_node_repl_ip in groups['postgresql_nodes'] | map('extract', hostvars, 'pg_replication_ip') %}
+    # - host replication {{ patroni_replication_user }} {{ pg_node_repl_ip }}/32 scram-sha-256
+    # {% endfor %}
+    - local all {{ patroni_superuser_user }} peer # For local superuser access
+
+  # Users Patroni can create/manage. Patroni needs a superuser.
+  # It's often better to create users with separate SQL/Ansible tasks for more control.
+  users:
+    {{ patroni_admin_user }}:
+      password: '{{ patroni_admin_password }}'
+      options:
+        - createrole
+        - createdb
+    {{ patroni_replication_user }}:
+      password: '{{ patroni_replication_password }}'
+      options:
+        - replication
+    {{ patroni_rewind_user }}: # For pg_rewind
+      password: '{{ patroni_rewind_password }}'
+      options:
+        - replication # pg_rewind needs replication connection
+        # Or specific permissions as per Patroni docs for pg_rewind
+
+
+# Watchdog configuration (optional, for SBD/hardware watchdog)
+# watchdog:
+#   mode: automatic
+#   device: /dev/watchdog
+#   safety_margin: 5
+
+# Tags for node attributes (optional)
+# tags:
+#   nofailover: false
+#   noloadbalance: false
+#   clonefrom: false

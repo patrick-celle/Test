@@ -1,0 +1,58 @@
+---
+# tasks file for patroni role
+
+- name: Install Patroni and dependencies
+  pip:
+    name:
+      - patroni[etcd] # Includes python-etcd client
+      - psycopg2-binary # For PostgreSQL interaction
+    state: present
+  # Consider using a virtualenv for production
+
+- name: Create Patroni configuration directory
+  file:
+    path: /etc/patroni
+    state: directory
+    owner: postgres # Patroni often runs as postgres user
+    group: postgres
+    mode: '0755'
+
+- name: Create Patroni configuration file (patroni.yml)
+  template:
+    src: patroni.yml.j2
+    dest: "/etc/patroni/patroni.yml"
+    owner: postgres
+    group: postgres
+    mode: '0600' # Sensitive information
+  notify: Restart patroni
+
+- name: Create Patroni systemd service file
+  template:
+    src: patroni.service.j2
+    dest: /etc/systemd/system/patroni.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd and restart patroni
+
+- name: Ensure Patroni service is started and enabled
+  service:
+    name: patroni
+    state: started
+    enabled: yes
+    daemon_reload: yes # Ensure systemd reads new/changed unit file
+
+# Firewall tasks (using ufw as an example)
+- name: Allow Patroni API port (default 8008)
+  ufw:
+    rule: allow
+    port: '8008' # Default Patroni API port
+    proto: tcp
+    comment: Patroni API
+
+- name: Allow PostgreSQL port (default 5432) - might be redundant if already in postgresql role
+  ufw:
+    rule: allow
+    port: '5432' # Default PostgreSQL port
+    proto: tcp
+    comment: PostgreSQL

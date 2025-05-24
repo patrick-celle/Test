@@ -1,0 +1,37 @@
+---
+# tasks file for common role
+
+- name: Install NTP and common packages
+  apt:
+    name:
+      - ntp
+      - python3-pip
+      - gnupg # For adding PostgreSQL repo later
+      # Add other common packages if needed
+    state: present
+    update_cache: yes
+
+- name: Ensure NTP service is started and enabled
+  service:
+    name: ntp
+    state: started
+    enabled: yes
+
+# Placeholder for user creation tasks
+# - name: Create group for postgresql and patroni
+#   group:
+#     name: "{{ item }}"
+#     state: present
+#   loop:
+#     - postgres
+#     - patroni
+
+# - name: Create user for postgresql and patroni
+#   user:
+#     name: "{{ item }}"
+#     group: "{{ item }}"
+#     shell: /bin/bash
+#     state: present
+#   loop:
+#     - postgres
+#     - patroni

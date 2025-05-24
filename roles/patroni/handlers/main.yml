@@ -1,0 +1,13 @@
+---
+# handlers file for patroni
+- name: Restart patroni
+  service:
+    name: patroni
+    state: restarted
+  listen: "Restart patroni"
+
+- name: Reload systemd and restart patroni
+  systemd:
+    daemon_reload: yes
+  notify: Restart patroni # Chain the restart
+  listen: "Reload systemd and restart patroni"

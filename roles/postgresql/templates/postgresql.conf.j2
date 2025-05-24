@@ -1,0 +1,27 @@
+# Ansible managed: {{ ansible_managed }}
+# Patroni will override many of these settings.
+# This file provides initial settings or those not managed by Patroni.
+
+listen_addresses = '{{ ansible_host }},{{ pg_replication_ip }},localhost'
+port = 5432
+
+# Other settings Patroni might not manage directly or for initial setup
+# For example, SSL, logging, etc. can be set here if not in Patroni's scope.
+# Patroni's postgresql.parameters will take precedence for parameters it controls.
+
+# Example:
+# ssl = on
+# ssl_cert_file = '/etc/ssl/certs/ssl-cert-snakeoil.pem'
+# ssl_key_file = '/etc/ssl/private/ssl-cert-snakeoil.key'
+
+max_wal_senders = 10
+wal_keep_segments = 64 # Adjust based on your needs, or wal_keep_size in newer PG versions
+wal_level = replica
+
+# Include Patroni's custom configuration if it exists
+# Patroni will create/manage its own conf file that gets included by the main postgresql.conf
+# The path might vary based on Patroni setup, e.g. {{ pg_data_dir }}/patroni.conf
+# This is often handled by Patroni itself by modifying postgresql.conf or using include_dir.
+# For now, we assume Patroni's method will handle its specific parameter overrides.
+# A common entry Patroni might add:
+# include_if_exists = '{{ pg_data_dir }}/patroni.postgresql.conf'

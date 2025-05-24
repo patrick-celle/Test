@@ -1,0 +1,28 @@
+# Ansible managed: {{ ansible_managed }}
+# Patroni will also manage parts of this, especially for replication.
+
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# "local" is for Unix domain socket connections only
+local   all             postgres                                peer
+local   all             all                                     peer
+
+# IPv4 local connections:
+host    all             all             127.0.0.1/32            scram-sha-256
+host    all             all             {{ ansible_host }}/32     scram-sha-256
+
+# Replication connections from other PostgreSQL nodes in the cluster
+# Patroni will need replication user access from all other pg nodes
+{% for host in groups['postgresql_nodes'] %}
+host    replication     {{ patroni_replication_user }}  {{ hostvars[host]['ansible_host'] }}/32       scram-sha-256
+host    replication     {{ patroni_replication_user }}  {{ hostvars[host]['pg_replication_ip'] }}/32  scram-sha-256
+{% endfor %}
+
+# Allow Patroni admin/monitoring access if needed from specific hosts or all app hosts
+# host    all             {{ patroni_admin_user }}        0.0.0.0/0               scram-sha-256
+
+# IPv6 local connections:
+host    all             all             ::1/128                 scram-sha-256
+
+# Allow replication connections from the local node as well (sometimes needed)
+# local   replication     postgres                                peer
